@@ -19,16 +19,16 @@
 
 ```bash
 # Using bun
-bun install -g wami
+bun install -g @calebmabry/wami
 
 # Using npm
-npm install -g wami
+npm i -g @calebmabry/wami
 
 # Using pnpm
-pnpm add -g wami
+pnpm add -g @calebmabry/wami
 
 # Using yarn
-yarn global add wami
+yarn global add @calebmabry/wami
 ```
 
 ## 🚀 Usage
