@@ -12,5 +12,8 @@ const { waitUntilExit, clear } = render(<App />, {
 // Wait for the app to exit
 await waitUntilExit();
 
-// Ensure cleanup
+// Clear Ink output
 clear();
+
+// Clear the terminal completely
+process.stdout.write('\x1Bc'); // ESC c - Full terminal reset

@@ -141,7 +141,7 @@ export async function getHistory(projectPath: string): Promise<Script[]> {
   return history[projectPath].history.map((entry) => ({
     name: entry.script,
     command: entry.command,
-    description: `Run ${entry.count} time${entry.count > 1 ? 's' : ''} before`,
+    description: entry.command, // Show the actual command
   }));
 }
 

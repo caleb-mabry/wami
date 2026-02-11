@@ -2,9 +2,10 @@
  * Interactive Script List Component
  *
  * Displays scripts with keyboard navigation:
- * - Up/Down arrows: Navigate
+ * - Up/Down arrows or j/k: Navigate
  * - Enter: Execute selected script
- * - Escape/q: Exit
+ * - Escape: Back/Cancel (on sub-screens)
+ * - q: Quit
  */
 
 import React, { useState, useEffect } from 'react';
@@ -12,9 +13,12 @@ import { Text, Box, useInput, useApp } from 'ink';
 import Spinner from 'ink-spinner';
 import type { PackageInfo, Script } from '../types/index.js';
 import type { EcosystemDetector } from '../core/detector.js';
+import type { DetectionResult } from '../core/registry.js';
 import { executeCommand } from '../utils/command.js';
 import { ArgumentInput } from './ArgumentInput.js';
 import { CommandEditor } from './CommandEditor.js';
+import { CustomCommandInput } from './CustomCommandInput.js';
+import { ProjectSwitcher } from './ProjectSwitcher.js';
 import { getHistory, deleteFromHistory } from '../utils/history.js';
 
 interface ScriptListProps {
@@ -22,6 +26,8 @@ interface ScriptListProps {
   detector: EcosystemDetector;
   history: Script[];
   projectPath: string;
+  allProjects: DetectionResult[];
+  onProjectSwitch: (project: DetectionResult) => void;
 }
 
 export function ScriptList({
@@ -29,10 +35,14 @@ export function ScriptList({
   detector,
   history: initialHistory,
   projectPath,
+  allProjects,
+  onProjectSwitch,
 }: ScriptListProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showArgInput, setShowArgInput] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [showCustomCommand, setShowCustomCommand] = useState(false);
+  const [showProjectSwitcher, setShowProjectSwitcher] = useState(false);
   const [history, setHistory] = useState(initialHistory);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,8 +76,8 @@ export function ScriptList({
   }, [allScripts.length, selectedIndex]);
 
   useInput((input, key) => {
-    // Don't handle input if showing argument input or editor
-    if (showArgInput || showEditor) {
+    // Don't handle input if showing argument input, editor, custom command, or project switcher
+    if (showArgInput || showEditor || showCustomCommand || showProjectSwitcher) {
       return;
     }
 
@@ -93,10 +103,10 @@ export function ScriptList({
       return;
     }
 
-    // Navigation
-    if (key.upArrow) {
+    // Navigation (arrow keys and vim-style j/k)
+    if (key.upArrow || input === 'k') {
       setSelectedIndex((prev) => Math.max(0, prev - 1));
-    } else if (key.downArrow) {
+    } else if (key.downArrow || input === 'j') {
       setSelectedIndex((prev) => Math.min(allScripts.length - 1, prev + 1));
     }
 
@@ -110,7 +120,14 @@ export function ScriptList({
           ? selectedScript.command
           : detector.buildCommand(packageInfo, selectedScript.name);
 
-        executeCommand(command, exit);
+        // Always save to history to update frequency count
+        executeCommand(
+          command,
+          exit,
+          projectPath,
+          selectedScript.name,
+          true // Always save to update frequency
+        );
       }
     }
 
@@ -130,10 +147,16 @@ export function ScriptList({
       setSearchQuery('');
     }
 
-    // Clear search filter
-    else if (input === 'c' && searchQuery) {
-      setSearchQuery('');
-      setSelectedIndex(0);
+    // Clear search filter OR open custom command
+    else if (input === 'c') {
+      if (searchQuery) {
+        // Clear search if active
+        setSearchQuery('');
+        setSelectedIndex(0);
+      } else {
+        // Open custom command input
+        setShowCustomCommand(true);
+      }
     }
 
     // Delete from history
@@ -158,8 +181,13 @@ export function ScriptList({
       }
     }
 
-    // Exit
-    else if (key.escape || input === 'q') {
+    // Open project switcher (only if multiple projects detected)
+    else if (input === 'p' && allProjects.length > 1) {
+      setShowProjectSwitcher(true);
+    }
+
+    // Exit (only 'q' quits, Escape does nothing on main screen)
+    else if (input === 'q') {
       exit();
     }
   });
@@ -217,6 +245,47 @@ export function ScriptList({
   const handleEditorCancel = () => {
     setShowEditor(false);
   };
+
+  const handleProjectSelect = (project: DetectionResult) => {
+    setShowProjectSwitcher(false);
+    onProjectSwitch(project);
+  };
+
+  const handleProjectSwitcherCancel = () => {
+    setShowProjectSwitcher(false);
+  };
+
+  const handleCustomCommandSubmit = (name: string, command: string) => {
+    setShowCustomCommand(false);
+    // Save to history with user-provided name
+    executeCommand(command, exit, projectPath, name, true);
+  };
+
+  const handleCustomCommandCancel = () => {
+    setShowCustomCommand(false);
+  };
+
+  // Show custom command input if active
+  if (showCustomCommand) {
+    return (
+      <CustomCommandInput
+        onSubmit={handleCustomCommandSubmit}
+        onCancel={handleCustomCommandCancel}
+      />
+    );
+  }
+
+  // Show project switcher if active
+  if (showProjectSwitcher) {
+    return (
+      <ProjectSwitcher
+        projects={allProjects}
+        currentProjectPath={projectPath}
+        onSelect={handleProjectSelect}
+        onCancel={handleProjectSwitcherCancel}
+      />
+    );
+  }
 
   if (showArgInput) {
     const selectedScript = allScripts[selectedIndex];
@@ -423,11 +492,11 @@ export function ScriptList({
         <Text dimColor>
           {isSearching ? (
             <>
-              <Text bold>Type</Text> to search  <Text bold>↑/↓</Text> navigate  <Text bold>Enter</Text> done  <Text bold>Esc</Text> cancel
+              <Text bold>Type</Text> to search  <Text bold>↑/↓/k/j</Text> navigate  <Text bold>Enter</Text> done  <Text bold>Esc</Text> cancel
             </>
           ) : (
             <>
-              <Text bold>↑/↓</Text> navigate  <Text bold>Enter</Text> run  <Text bold>a</Text> add args  <Text bold>e</Text> edit  <Text bold>/</Text> search  {historyCount > 0 && <><Text bold>d</Text> delete  </>}<Text bold>q</Text> quit
+              <Text bold>↑/↓/k/j</Text> navigate  <Text bold>Enter</Text> run  <Text bold>a</Text> add args  <Text bold>e</Text> edit  {searchQuery ? <><Text bold>c</Text> clear  </> : <><Text bold>c</Text> custom  </>}<Text bold>/</Text> search  {historyCount > 0 && <><Text bold>d</Text> delete  </>}{allProjects.length > 1 && <><Text bold>p</Text> projects  </>}<Text bold>q</Text> quit
             </>
           )}
         </Text>

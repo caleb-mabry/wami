@@ -6,9 +6,12 @@
  */
 
 import * as path from 'path';
+import * as TOML from '@iarna/toml';
 import { EcosystemDetector } from './detector.js';
 import { findFileUpwards, fileExists, readJsonFile } from '../utils/fs.js';
 import { loadConfig, detectVenv } from '../utils/config.js';
+import { pythonParserRegistry } from './python/parser-registry.js';
+import { detectPythonTools, extractDependencyNames } from './python/tool-detector.js';
 import { promises as fs } from 'fs';
 import type { PackageInfo, Script } from '../types/index.js';
 
@@ -212,10 +215,61 @@ export class PythonDetector extends EcosystemDetector {
         command: `python -m ${key}`, // Attempt to run as module
       }));
 
-      scripts.push({ name: 'install', command: 'pip install -e .' });
+      scripts.push({ name: 'install', command: 'pip install -e .', description: 'Install package in editable mode' });
     }
 
+    // Auto-discover and parse all task runners (poe, invoke, nox, etc.)
+    const taskScripts = pythonParserRegistry.parseAll(toml);
+    scripts.push(...taskScripts);
+
+    // Collect all dependencies for tool detection
+    const allDependencies = this.collectAllDependencies(toml);
+
+    // Detect and add tool commands
+    const toolScripts = await detectPythonTools(allDependencies, projectRoot);
+
+    // Filter out tool scripts that conflict with existing script names
+    const existingScriptNames = new Set(scripts.map(s => s.name));
+    const uniqueToolScripts = toolScripts.filter(tool => !existingScriptNames.has(tool.name));
+    scripts.push(...uniqueToolScripts);
+
     return { name, scripts, packageManager };
+  }
+
+  /**
+   * Collect all dependencies from various sections of pyproject.toml.
+   */
+  private collectAllDependencies(toml: any): Set<string> {
+    const dependencies = new Set<string>();
+
+    // PEP 621 dependencies
+    if (toml.project?.dependencies) {
+      extractDependencyNames(toml.project.dependencies).forEach(dep => dependencies.add(dep));
+    }
+
+    // PEP 735 dependency-groups (new format)
+    if (toml['dependency-groups']) {
+      Object.values(toml['dependency-groups']).forEach((group: any) => {
+        if (Array.isArray(group)) {
+          extractDependencyNames(group).forEach(dep => dependencies.add(dep));
+        }
+      });
+    }
+
+    // Poetry dependencies
+    if (toml.tool?.poetry?.dependencies) {
+      Object.keys(toml.tool.poetry.dependencies).forEach(dep => dependencies.add(dep.toLowerCase()));
+    }
+    if (toml.tool?.poetry?.['dev-dependencies']) {
+      Object.keys(toml.tool.poetry['dev-dependencies']).forEach(dep => dependencies.add(dep.toLowerCase()));
+    }
+
+    // PDM dependencies
+    if (toml.tool?.pdm?.['dev-dependencies']) {
+      Object.keys(toml.tool.pdm['dev-dependencies']).forEach(dep => dependencies.add(dep.toLowerCase()));
+    }
+
+    return dependencies;
   }
 
   /**
@@ -256,61 +310,10 @@ export class PythonDetector extends EcosystemDetector {
   }
 
   /**
-   * Simple TOML parser (supports basic key-value and sections).
-   * For production, consider using a proper TOML library.
+   * Parse TOML content using proper TOML library.
    */
   private parseToml(content: string): any {
-    const result: any = {};
-    let currentSection: any = result;
-    const sectionPath: string[] = [];
-
-    const lines = content.split('\n');
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      // Skip empty lines and comments
-      if (!trimmed || trimmed.startsWith('#')) {
-        continue;
-      }
-
-      // Section header: [section.subsection]
-      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-        const section = trimmed.slice(1, -1);
-        const parts = section.split('.');
-
-        currentSection = result;
-        sectionPath.length = 0;
-
-        for (const part of parts) {
-          sectionPath.push(part);
-          if (!currentSection[part]) {
-            currentSection[part] = {};
-          }
-          currentSection = currentSection[part];
-        }
-        continue;
-      }
-
-      // Key-value pair: key = "value" or key = value
-      const match = trimmed.match(/^([^=]+)=(.+)$/);
-      if (match && match[1] && match[2]) {
-        const key = match[1].trim();
-        let value = match[2].trim();
-
-        // Remove quotes
-        if (
-          (value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))
-        ) {
-          value = value.slice(1, -1);
-        }
-
-        currentSection[key] = value;
-      }
-    }
-
-    return result;
+    return TOML.parse(content);
   }
 
   /**
@@ -362,13 +365,29 @@ export class PythonDetector extends EcosystemDetector {
     // Check if this is a built-in command (install, shell, etc.)
     const script = packageInfo.scripts.find((s) => s.name === scriptName);
     if (script) {
-      // If the script already has the full command, use it
-      if (script.command.includes(manager) || script.command.includes('uv run')) {
+      // If the script already has the full command with package manager, use it as-is
+      if (script.command.includes(manager) || script.command.includes('uv run') || script.command.includes('poetry run') || script.command.includes('pdm run') || script.command.includes('pipenv run')) {
         return script.command;
+      }
+
+      // Otherwise, prepend the package manager run command to the script's command
+      switch (manager) {
+        case 'uv':
+          return `uv run ${script.command}`;
+        case 'poetry':
+          return `poetry run ${script.command}`;
+        case 'pdm':
+          return `pdm run ${script.command}`;
+        case 'pipenv':
+          return `pipenv run ${script.command}`;
+        case 'pip':
+        default:
+          // For pip, just run the command directly (assumes venv is activated or tools are globally installed)
+          return script.command;
       }
     }
 
-    // Custom script - needs "run" prefix
+    // Fallback if script not found - use scriptName directly
     switch (manager) {
       case 'uv':
         return `uv run ${scriptName}`;

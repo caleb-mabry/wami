@@ -9,20 +9,34 @@
 
 - 🚀 **Zero Config** - Works instantly in any repo. No setup files needed.
 - 🔍 **Smart Detection** - Auto-detects Node.js, Python, and more
+- 🛠️ **Auto-discover Dev Tools** - Detects ruff, pytest, eslint, prettier, and more from dependencies
 - 📦 **Multi-Package Manager** - Supports npm, yarn, pnpm, bun, poetry, uv, pipenv, pip
+- 🎯 **Task Runner Support** - Poethepoet (poe), npm scripts, and more
 - 📝 **Command History** - Remembers commands with arguments across sessions
 - ✏️ **Interactive Editing** - Add arguments on-the-fly, edit before running
-- 🔎 **Smart Search** - Filter through 50+ scripts instantly
-- 🏢 **Mono-repo Ready** - Intelligently detects workspaces
+- ⚡ **Custom Commands** - Create and save custom commands with arguments
+- 🔎 **Smart Search** - Filter through 50+ scripts instantly with fuzzy search
+- 🏢 **Mono-repo Ready** - Intelligently detects and switches between multiple projects
+- ⌨️ **Vim Navigation** - j/k keys for navigation, familiar keyboard shortcuts
 
 ## 📦 Installation
 
-```bash
-# Using bun
-bun install -g @calebmabry/wami
+### Try it without installing (npx)
 
+```bash
+npx @calebmabry/wami
+```
+
+Perfect for trying it out or using in CI/CD without global installation!
+
+### Install globally
+
+```bash
 # Using npm
 npm i -g @calebmabry/wami
+
+# Using bun
+bun install -g @calebmabry/wami
 
 # Using pnpm
 pnpm add -g @calebmabry/wami
@@ -36,36 +50,54 @@ yarn global add @calebmabry/wami
 Navigate to any project and run:
 
 ```bash
+# If installed globally
 wami
+
+# Or use npx (no installation needed)
+npx @calebmabry/wami
 ```
 
 ### Keyboard Shortcuts
 
-- **↑/↓** - Navigate through scripts
-- **Enter** - Run selected script
-- **a** - Add arguments interactively
-- **e** - Edit command before running
-- **d** - Delete from history
-- **/** - Search/filter scripts
-- **c** - Clear search
-- **q** - Quit
+#### Navigation
+- **↑/↓ or j/k** - Navigate through scripts (vim-style)
+- **Enter** - Run selected script immediately
+- **Esc** - Go back/cancel (context-aware)
+- **q** - Quit application
+
+#### Actions
+- **a** - Add arguments to command before running
+- **e** - Edit full command before running
+- **c** - Create custom command (or clear search if active)
+- **d** - Delete command from history
+- **/** or **s** - Search/filter scripts
+- **p** - Switch between projects (in mono-repos)
+
+#### In Input Modes
+- **Tab** - Switch between fields
+- **←/→** - Move cursor
+- **Backspace** - Delete character
+- **Esc** - Cancel and return
 
 ## 🎯 Supported Ecosystems
 
 ### Node.js
-Detects \`package.json\` and supports:
-- npm
-- yarn
-- pnpm
-- bun
+**Detects:** \`package.json\`
+**Package Managers:** npm, yarn, pnpm, bun
+**Auto-detected Tools:** TypeScript, ESLint, Prettier, Biome, Vitest, Jest, Playwright, Cypress
+
+Automatically discovers and shows dev tools installed in your dependencies.
 
 ### Python
-Detects \`pyproject.toml\`, \`Pipfile\`, or \`requirements.txt\` and supports:
-- poetry
-- uv
-- pipenv
-- pip
-- PDM
+**Detects:** \`pyproject.toml\`, \`Pipfile\`, \`requirements.txt\`
+**Package Managers:** poetry, uv, pipenv, pip, PDM
+**Task Runners:** poethepoet (poe)
+**Auto-detected Tools:** ruff, pytest, black, mypy, pyright, isort, flake8, pylint, coverage, pre-commit, bandit, sphinx
+
+Automatically discovers:
+- Scripts from \`[project.scripts]\` (PEP 621)
+- Tasks from \`[tool.poe.tasks]\` (poethepoet)
+- Dev tools from dependencies (both main and dev groups)
 
 ## 🏗️ How It Works
 

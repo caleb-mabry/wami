@@ -73,11 +73,86 @@ Every detector must implement:
 - **`parse(projectRoot)`**: Parse project info and available commands
 - **`buildCommand(packageInfo, scriptName)`**: Build the command string to execute
 
+## Advanced: Modular Task Parser Architecture (Python Example)
+
+For complex ecosystems with multiple task runners, use the plugin pattern:
+
+### 1. Define a TaskParser Interface
+
+```typescript
+export interface TaskParser {
+  readonly name: string;
+  isConfigured(config: any): boolean;
+  parse(config: any): Script[];
+}
+```
+
+### 2. Create Individual Parsers
+
+**src/core/python/poe-parser.ts:**
+```typescript
+export class PoeTaskParser implements TaskParser {
+  readonly name = 'poethepoet';
+
+  isConfigured(toml: any): boolean {
+    return !!toml.tool?.poe?.tasks;
+  }
+
+  parse(toml: any): Script[] {
+    // Parse [tool.poe.tasks] section
+    return scripts;
+  }
+}
+
+export const poeTaskParser = new PoeTaskParser();
+```
+
+### 3. Auto-Discovery Registry
+
+**src/core/python/parser-registry.ts:**
+```typescript
+import { poeTaskParser } from './poe-parser.js';
+import { invokeTaskParser } from './invoke-parser.js';
+
+class PythonParserRegistry {
+  private parsers: TaskParser[] = [];
+
+  constructor() {
+    this.register(poeTaskParser);
+    this.register(invokeTaskParser);
+    // Auto-discovers all parsers!
+  }
+
+  parseAll(toml: any): Script[] {
+    return this.parsers
+      .filter(p => p.isConfigured(toml))
+      .flatMap(p => p.parse(toml));
+  }
+}
+```
+
+### 4. Use in Main Detector
+
+```typescript
+import { pythonParserRegistry } from './python/parser-registry.js';
+
+const taskScripts = pythonParserRegistry.parseAll(toml);
+scripts.push(...taskScripts);
+```
+
+### Benefits
+
+- **Isolated**: Each parser in its own file (e.g., `poe-parser.ts`)
+- **Extensible**: Add new task runners by creating a file and registering
+- **Maintainable**: Easy to debug and update individual parsers
+- **Auto-discovery**: Registry automatically finds and runs all configured parsers
+
 ## Example Ecosystems to Add
 
 - **Rust**: Detect `Cargo.toml`, parse cargo commands
 - **Go**: Detect `go.mod`, parse available commands
-- **Python**: Detect `pyproject.toml`, `requirements.txt`, parse poetry/pip commands
 - **Ruby**: Detect `Gemfile`, parse rake tasks
 - **Java/Maven**: Detect `pom.xml`, parse maven goals
 - **Java/Gradle**: Detect `build.gradle`, parse gradle tasks
+- **PHP/Composer**: Detect `composer.json`, parse composer scripts
+- **Elixir/Mix**: Detect `mix.exs`, parse mix tasks

@@ -4,7 +4,7 @@ The `.wami.json` file allows you to customize `wami` behavior for your project. 
 
 ## Location
 
-Create `.wami.json` or `wai.json` in your project root (same directory as `package.json`, `pyproject.toml`, etc.)
+Create `.wami.json` in your project root (same directory as `package.json`, `pyproject.toml`, etc.)
 
 ## Schema
 

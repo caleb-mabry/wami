@@ -24,6 +24,9 @@ interface PackageJson {
   name?: string;
   scripts?: Record<string, string>;
   workspaces?: string[] | { packages: string[] };
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
 }
 
 export class NodeJSDetector extends EcosystemDetector {
@@ -51,7 +54,16 @@ export class NodeJSDetector extends EcosystemDetector {
     const packageManager = await this.detectPackageManager(projectRoot);
 
     // Extract scripts
-    const scripts = this.extractScripts(packageJson);
+    let scripts = this.extractScripts(packageJson);
+
+    // Detect and add tool commands
+    const toolScripts = await this.detectToolCommands(packageJson, projectRoot);
+
+    // Filter out tool scripts that conflict with existing script names
+    const existingScriptNames = new Set(scripts.map(s => s.name));
+    const uniqueToolScripts = toolScripts.filter(tool => !existingScriptNames.has(tool.name));
+
+    scripts = [...scripts, ...uniqueToolScripts];
 
     // Detect workspace information
     const workspace = await this.detectWorkspace(projectRoot);
@@ -63,6 +75,149 @@ export class NodeJSDetector extends EcosystemDetector {
       scripts,
       workspace,
     };
+  }
+
+  /**
+   * Detect available tools from dependencies and infer useful commands.
+   */
+  private async detectToolCommands(
+    packageJson: PackageJson,
+    projectRoot: string
+  ): Promise<Script[]> {
+    const tools: Script[] = [];
+
+    // Collect all dependencies (including peer dependencies)
+    const allDeps = {
+      ...(packageJson.dependencies || {}),
+      ...(packageJson.devDependencies || {}),
+      ...(packageJson.peerDependencies || {}),
+    };
+
+    const dependencies = new Set(Object.keys(allDeps).map(dep => dep.toLowerCase()));
+
+    // TypeScript - Type checking and compilation
+    if (dependencies.has('typescript')) {
+      const hasTsConfig = await fileExists(path.join(projectRoot, 'tsconfig.json'));
+      if (hasTsConfig) {
+        tools.push(
+          { name: 'tsc', command: 'tsc --noEmit', description: '🔍 Type check with TypeScript' },
+          { name: 'tsc-build', command: 'tsc', description: '🏗️  Build TypeScript project' }
+        );
+      }
+    }
+
+    // ESLint - Linting
+    if (dependencies.has('eslint')) {
+      tools.push(
+        { name: 'eslint', command: 'eslint .', description: '🔍 Lint code with ESLint' },
+        { name: 'eslint-fix', command: 'eslint . --fix', description: '🔧 Lint and auto-fix issues' }
+      );
+    }
+
+    // Prettier - Formatting
+    if (dependencies.has('prettier')) {
+      tools.push(
+        { name: 'prettier-check', command: 'prettier --check .', description: '👀 Check code formatting' },
+        { name: 'prettier-write', command: 'prettier --write .', description: '✨ Format code with Prettier' }
+      );
+    }
+
+    // Biome - Fast linter and formatter (alternative to ESLint + Prettier)
+    if (dependencies.has('@biomejs/biome') || dependencies.has('biome')) {
+      tools.push(
+        { name: 'biome-check', command: 'biome check .', description: '🔍 Check code with Biome' },
+        { name: 'biome-check-fix', command: 'biome check --write .', description: '🔧 Check and auto-fix with Biome' },
+        { name: 'biome-format', command: 'biome format --write .', description: '✨ Format code with Biome' }
+      );
+    }
+
+    // Vitest - Testing framework
+    if (dependencies.has('vitest')) {
+      tools.push(
+        { name: 'vitest', command: 'vitest', description: '🧪 Run tests with Vitest' },
+        { name: 'vitest-ui', command: 'vitest --ui', description: '🧪 Run tests with Vitest UI' },
+        { name: 'vitest-run', command: 'vitest run', description: '🧪 Run tests once' },
+        { name: 'vitest-coverage', command: 'vitest --coverage', description: '📊 Run tests with coverage' }
+      );
+    }
+
+    // Jest - Testing framework
+    if (dependencies.has('jest') || dependencies.has('@jest/core')) {
+      tools.push(
+        { name: 'jest', command: 'jest', description: '🧪 Run tests with Jest' },
+        { name: 'jest-watch', command: 'jest --watch', description: '🧪 Run tests in watch mode' },
+        { name: 'jest-coverage', command: 'jest --coverage', description: '📊 Run tests with coverage' }
+      );
+    }
+
+    // Playwright - E2E testing
+    if (dependencies.has('@playwright/test') || dependencies.has('playwright')) {
+      tools.push(
+        { name: 'playwright-test', command: 'playwright test', description: '🎭 Run Playwright tests' },
+        { name: 'playwright-ui', command: 'playwright test --ui', description: '🎭 Run Playwright tests with UI' },
+        { name: 'playwright-debug', command: 'playwright test --debug', description: '🐛 Debug Playwright tests' }
+      );
+    }
+
+    // Cypress - E2E testing
+    if (dependencies.has('cypress')) {
+      tools.push(
+        { name: 'cypress-open', command: 'cypress open', description: '🌲 Open Cypress test runner' },
+        { name: 'cypress-run', command: 'cypress run', description: '🌲 Run Cypress tests headlessly' }
+      );
+    }
+
+    // Vite - Build tool
+    if (dependencies.has('vite')) {
+      tools.push(
+        { name: 'vite-dev', command: 'vite', description: '⚡ Start Vite dev server' },
+        { name: 'vite-build', command: 'vite build', description: '⚡ Build with Vite' },
+        { name: 'vite-preview', command: 'vite preview', description: '⚡ Preview Vite build' }
+      );
+    }
+
+    // Turbo - Monorepo build system
+    if (dependencies.has('turbo')) {
+      tools.push(
+        { name: 'turbo-build', command: 'turbo build', description: '🚀 Build with Turbo' },
+        { name: 'turbo-dev', command: 'turbo dev', description: '🚀 Start dev mode with Turbo' },
+        { name: 'turbo-test', command: 'turbo test', description: '🚀 Run tests with Turbo' }
+      );
+    }
+
+    // Nx - Monorepo build system
+    if (dependencies.has('nx') || dependencies.has('@nx/workspace')) {
+      tools.push(
+        { name: 'nx-build', command: 'nx build', description: '🔷 Build with Nx' },
+        { name: 'nx-test', command: 'nx test', description: '🔷 Run tests with Nx' },
+        { name: 'nx-graph', command: 'nx graph', description: '🔷 View project graph' }
+      );
+    }
+
+    // Type-check - General type checking (if no tsc script exists)
+    if (dependencies.has('typescript') && !packageJson.scripts?.typecheck) {
+      tools.push(
+        { name: 'typecheck', command: 'tsc --noEmit', description: '🔍 Type check code' }
+      );
+    }
+
+    // Stylelint - CSS linting
+    if (dependencies.has('stylelint')) {
+      tools.push(
+        { name: 'stylelint', command: 'stylelint "**/*.css"', description: '💅 Lint CSS files' },
+        { name: 'stylelint-fix', command: 'stylelint "**/*.css" --fix', description: '💅 Lint and fix CSS files' }
+      );
+    }
+
+    // Storybook - Component development
+    if (dependencies.has('@storybook/react') || dependencies.has('storybook')) {
+      tools.push(
+        { name: 'storybook', command: 'storybook dev', description: '📖 Start Storybook dev server' },
+        { name: 'storybook-build', command: 'storybook build', description: '📖 Build Storybook' }
+      );
+    }
+
+    return tools;
   }
 
   /**
