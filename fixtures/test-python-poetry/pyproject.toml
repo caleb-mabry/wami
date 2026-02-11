@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "my-python-app"
+version = "0.1.0"
+description = "A test Python project"
+authors = ["Test Author <test@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.28.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0.0"
+black = "^22.0.0"
+
+[tool.poetry.scripts]
+dev = "python app.py"
+test = "pytest tests/"
+format = "black ."
+lint = "black --check ."
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

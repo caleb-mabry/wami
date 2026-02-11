@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wami - Where Am I? | Never Forget Your Commands Again</title>
+    <meta name="description" content="A smart TUI that detects your repository and shows available commands. Works everywhere, zero config.">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(214.3 31.8% 91.4%)",
+                        input: "hsl(214.3 31.8% 91.4%)",
+                        ring: "hsl(222.2 84% 4.9%)",
+                        background: "hsl(0 0% 100%)",
+                        foreground: "hsl(222.2 84% 4.9%)",
+                        primary: {
+                            DEFAULT: "hsl(222.2 47.4% 11.2%)",
+                            foreground: "hsl(210 40% 98%)",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(210 40% 96.1%)",
+                            foreground: "hsl(222.2 47.4% 11.2%)",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(210 40% 96.1%)",
+                            foreground: "hsl(215.4 16.3% 46.9%)",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(210 40% 96.1%)",
+                            foreground: "hsl(222.2 47.4% 11.2%)",
+                        },
+                    },
+                    keyframes: {
+                        'fade-in': {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        'slide-in': {
+                            '0%': { transform: 'translateX(-100%)' },
+                            '100%': { transform: 'translateX(0)' }
+                        },
+                        'pulse-glow': {
+                            '0%, 100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)' },
+                            '50%': { boxShadow: '0 0 40px rgba(59, 130, 246, 0.8)' }
+                        },
+                        'blink': {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0' }
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fade-in 0.5s ease-out',
+                        'slide-in': 'slide-in 0.5s ease-out',
+                        'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+                        'blink': 'blink 1s step-end infinite'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .terminal {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .terminal-header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background: #3b82f6;
+            animation: blink 1s step-end infinite;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+    <!-- Header -->
+    <header class="fixed top-0 w-full bg-white/80 backdrop-blur-lg border-b border-slate-200 z-50">
+        <nav class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl font-bold gradient-text">wami</span>
+                    <span class="text-sm text-slate-500 font-mono">v0.1.0</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#features" class="text-slate-600 hover:text-slate-900 transition">Features</a>
+                    <a href="#demo" class="text-slate-600 hover:text-slate-900 transition">Demo</a>
+                    <a href="#install" class="text-slate-600 hover:text-slate-900 transition">Install</a>
+                    <a href="https://github.com/caleb-mabry/wami" class="inline-flex items-center px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                        GitHub
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="pt-32 pb-20 px-6">
+        <div class="container mx-auto max-w-6xl">
+            <div class="text-center mb-16 animate-fade-in">
+                <h1 class="text-6xl md:text-7xl font-bold mb-6 leading-tight">
+                    Never forget your<br/>
+                    <span class="gradient-text">commands again</span>
+                </h1>
+                <p class="text-xl md:text-2xl text-slate-600 mb-8 max-w-3xl mx-auto">
+                    A smart TUI that detects your repository and shows available commands.
+                    <span class="font-semibold text-slate-900">Works everywhere, zero config.</span>
+                </p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <a href="#install" class="inline-flex items-center px-8 py-4 bg-slate-900 text-white text-lg font-semibold rounded-xl hover:bg-slate-800 transition transform hover:scale-105 shadow-lg">
+                        Get Started
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                    </a>
+                    <a href="#demo" class="inline-flex items-center px-8 py-4 bg-white text-slate-900 text-lg font-semibold rounded-xl hover:bg-slate-50 transition border-2 border-slate-200">
+                        Watch Demo
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Terminal Demo -->
+            <div id="demo" class="terminal max-w-4xl mx-auto animate-fade-in">
+                <div class="terminal-header px-4 py-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="terminal-dot bg-red-500"></div>
+                        <div class="terminal-dot bg-yellow-500"></div>
+                        <div class="terminal-dot bg-green-500"></div>
+                    </div>
+                    <div class="text-slate-400 text-sm font-mono">wami - Where Am I?</div>
+                    <div class="w-16"></div>
+                </div>
+                <div class="p-6 font-mono text-sm h-96 overflow-auto" id="terminal-content">
+                    <!-- Terminal content will be animated here -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 px-6 bg-white">
+        <div class="container mx-auto max-w-6xl">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">Why <span class="gradient-text">wami</span>?</h2>
+                <p class="text-xl text-slate-600">Built for developers who work across multiple projects</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="feature-card bg-slate-50 rounded-xl p-8 border border-slate-200">
+                    <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Zero Config</h3>
+                    <p class="text-slate-600">Works instantly in any repo. No setup files, no configuration needed. Just run <code class="px-2 py-1 bg-slate-200 rounded">wami</code>.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card bg-slate-50 rounded-xl p-8 border border-slate-200">
+                    <div class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Multi-Language</h3>
+                    <p class="text-slate-600">Supports Node.js (npm, yarn, pnpm, bun), Python (poetry, uv, pipenv, pip), and more coming soon.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card bg-slate-50 rounded-xl p-8 border border-slate-200">
+                    <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Command History</h3>
+                    <p class="text-slate-600">Remembers commands you run with arguments. Never retype complex commands again.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card bg-slate-50 rounded-xl p-8 border border-slate-200">
+                    <div class="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Interactive Editing</h3>
+                    <p class="text-slate-600">Add arguments on-the-fly, edit commands before running, fix typos instantly.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card bg-slate-50 rounded-xl p-8 border border-slate-200">
+                    <div class="w-12 h-12 bg-pink-500 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Smart Search</h3>
+                    <p class="text-slate-600">Instantly filter through 50+ scripts. Search by name, command, or description.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card bg-slate-50 rounded-xl p-8 border border-slate-200">
+                    <div class="w-12 h-12 bg-cyan-500 rounded-lg flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Mono-repo Ready</h3>
+                    <p class="text-slate-600">Intelligently detects workspaces and shows context. Always finds the nearest package.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section id="install" class="py-20 px-6">
+        <div class="container mx-auto max-w-4xl">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">Get Started in <span class="gradient-text">Seconds</span></h2>
+                <p class="text-xl text-slate-600">Choose your package manager</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-12">
+                <div class="bg-white rounded-xl p-6 border border-slate-200">
+                    <h3 class="text-lg font-bold mb-3 flex items-center">
+                        <span class="text-2xl mr-2">🍞</span> Bun
+                    </h3>
+                    <pre class="bg-slate-900 text-green-400 p-4 rounded-lg font-mono text-sm">bun install -g wami</pre>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 border border-slate-200">
+                    <h3 class="text-lg font-bold mb-3 flex items-center">
+                        <span class="text-2xl mr-2">📦</span> npm
+                    </h3>
+                    <pre class="bg-slate-900 text-green-400 p-4 rounded-lg font-mono text-sm">npm install -g wami</pre>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-8 border-2 border-slate-200">
+                <h3 class="text-2xl font-bold mb-6">Quick Start</h3>
+                <div class="space-y-4">
+                    <div class="flex items-start">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white font-bold mr-4 flex-shrink-0">1</span>
+                        <div>
+                            <h4 class="font-semibold text-lg mb-1">Navigate to any project</h4>
+                            <pre class="bg-slate-50 p-3 rounded-lg font-mono text-sm text-slate-700">cd ~/code/my-project</pre>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white font-bold mr-4 flex-shrink-0">2</span>
+                        <div>
+                            <h4 class="font-semibold text-lg mb-1">Run wami</h4>
+                            <pre class="bg-slate-50 p-3 rounded-lg font-mono text-sm text-slate-700">wami</pre>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white font-bold mr-4 flex-shrink-0">3</span>
+                        <div>
+                            <h4 class="font-semibold text-lg mb-1">Navigate and run</h4>
+                            <p class="text-slate-600">Use ↑/↓ to navigate, Enter to run, 'a' to add arguments, '/' to search</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-6 bg-slate-900 text-white">
+        <div class="container mx-auto max-w-6xl">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="mb-4 md:mb-0">
+                    <span class="text-2xl font-bold gradient-text">wami</span>
+                    <p class="text-slate-400 mt-2">Never forget your commands again</p>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <a href="https://github.com/caleb-mabry/wami" class="text-slate-400 hover:text-white transition">GitHub</a>
+                    <a href="https://github.com/caleb-mabry/wami/issues" class="text-slate-400 hover:text-white transition">Issues</a>
+                    <a href="https://github.com/caleb-mabry/wami/blob/main/CONTRIBUTING.md" class="text-slate-400 hover:text-white transition">Contribute</a>
+                </div>
+            </div>
+            <div class="mt-8 pt-8 border-t border-slate-800 text-center text-slate-400 text-sm">
+                <p>Made with ❤️ by developers, for developers</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Terminal Animation Script -->
+    <script>
+        const terminalContent = document.getElementById('terminal-content');
+        let contentBuilder = '';
+
+        // Typing animation helper
+        async function typeText(text, color = 'text-slate-300', delay = 50) {
+            const chars = text.split('');
+            let typedText = '';
+
+            for (let i = 0; i < chars.length; i++) {
+                typedText += chars[i];
+                terminalContent.innerHTML = contentBuilder + `<span class="${color}">${typedText}</span><span class="cursor ml-1"></span>`;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+
+            // Add the completed text to contentBuilder with color preserved
+            contentBuilder += `<span class="${color}">${typedText}</span>`;
+            terminalContent.innerHTML = contentBuilder;
+        }
+
+        async function showSpinner(duration = 1000) {
+            const spinners = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            let index = 0;
+            const startTime = Date.now();
+
+            return new Promise(resolve => {
+                const interval = setInterval(() => {
+                    terminalContent.innerHTML = contentBuilder + `<div><span class="text-cyan-400">${spinners[index]}</span> <span class="text-slate-400">Detecting project...</span></div>`;
+                    index = (index + 1) % spinners.length;
+
+                    if (Date.now() - startTime >= duration) {
+                        clearInterval(interval);
+                        resolve();
+                    }
+                }, 80);
+            });
+        }
+
+        async function animateTerminal() {
+            // Clear everything
+            contentBuilder = '';
+            terminalContent.innerHTML = '';
+
+            // Step 1: Type the command
+            await typeText('$ wami', 'text-green-400', 100);
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Step 2: Press enter (move to next line)
+            contentBuilder += '<br><br>';
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Step 3: Show spinner
+            await showSpinner(1200);
+
+            // Step 4: Clear spinner and show content
+            contentBuilder += '<br>';
+            terminalContent.innerHTML = contentBuilder;
+
+            // Show header box
+            contentBuilder += `
+<div class="mb-4 p-4 border border-slate-700 rounded-lg">
+    <div class="text-cyan-400 font-bold text-lg mb-2">🗺️  Where Am I?</div>
+</div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 400));
+
+            // Repository info line by line
+            contentBuilder += `
+<div class="space-y-1 text-slate-300 mb-4">`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            contentBuilder += `
+    <div><span class="font-bold text-slate-200">Repository:</span> <span class="text-green-400">my-awesome-app</span></div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            contentBuilder += `
+    <div><span class="font-bold text-slate-200">Ecosystem:</span> <span class="text-blue-400">Node.js</span></div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            contentBuilder += `
+    <div><span class="font-bold text-slate-200">Package Manager:</span> <span class="text-purple-400">pnpm</span></div>`;
+            contentBuilder += `
+</div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 600));
+
+            // Scripts section - all in one box
+            contentBuilder += `
+<div class="p-4 border border-slate-700 rounded-lg">
+    <div class="text-green-400 font-bold mb-2">⚡ Recent Commands:</div>
+    <div class="ml-4 text-slate-400 mb-4">dev - Run 3 times before</div>
+
+    <div class="text-yellow-400 font-bold mb-2">📜 Available Scripts:</div>
+    <div class="ml-4 space-y-1">`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 400));
+
+            // Type each script line
+            contentBuilder += `
+        <div class="text-cyan-400 font-bold">▶ dev <span class="text-slate-500">- vite dev</span></div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            contentBuilder += `
+        <div class="text-slate-400">  build <span class="text-slate-500">- vite build</span></div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            contentBuilder += `
+        <div class="text-slate-400">  test <span class="text-slate-500">- vitest</span></div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            contentBuilder += `
+        <div class="text-slate-400">  lint <span class="text-slate-500">- eslint .</span></div>`;
+            terminalContent.innerHTML = contentBuilder;
+            await new Promise(resolve => setTimeout(resolve, 400));
+
+            // Show keyboard shortcuts
+            contentBuilder += `
+    </div>
+
+    <div class="mt-4 text-slate-500 text-xs">
+        <span class="font-bold">↑/↓</span> navigate  <span class="font-bold">Enter</span> run  <span class="font-bold">a</span> add args  <span class="font-bold">/</span> search  <span class="font-bold">q</span> quit
+    </div>
+</div>`;
+            terminalContent.innerHTML = contentBuilder;
+
+            // Wait before restarting
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Restart animation
+            animateTerminal();
+        }
+
+        // Start animation when page loads
+        window.addEventListener('load', () => {
+            animateTerminal();
+        });
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

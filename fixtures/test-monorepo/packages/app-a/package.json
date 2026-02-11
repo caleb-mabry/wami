@@ -1,0 +1,9 @@
+{
+  "name": "@myorg/app-a",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "echo 'Running app-a in dev mode'",
+    "build": "echo 'Building app-a'",
+    "test": "echo 'Testing app-a'"
+  }
+}

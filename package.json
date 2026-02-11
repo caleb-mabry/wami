@@ -1,0 +1,51 @@
+{
+  "name": "wami",
+  "version": "0.1.0",
+  "description": "Where Am I - A TUI tool that detects your repository and shows available commands",
+  "module": "src/cli.tsx",
+  "type": "module",
+  "bin": {
+    "wami": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "bun run src/cli.tsx",
+    "build": "bun build src/cli.tsx --outdir dist --target node --format esm --external react --external ink --external yoga-layout-prebuilt",
+    "start": "bun run dist/cli.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "cli",
+    "tui",
+    "terminal",
+    "developer-tools",
+    "repository",
+    "package-manager"
+  ],
+  "author": "Caleb Mabry",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/caleb-mabry/wami.git"
+  },
+  "homepage": "https://github.com/caleb-mabry/wami#readme",
+  "bugs": {
+    "url": "https://github.com/caleb-mabry/wami/issues"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.13"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "ink": "^6.7.0",
+    "ink-spinner": "^5.0.0",
+    "react": "^19.2.4",
+    "yoga-layout-prebuilt": "^1.10.0"
+  }
+}

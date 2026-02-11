@@ -1,0 +1,13 @@
+[project]
+name = "postgres-mcp"
+version = "0.1.0"
+description = "PostgreSQL MCP server"
+requires-python = ">=3.10"
+
+[project.scripts]
+postgres-mcp = "postgres_mcp:main"
+migrate = "postgres_mcp.cli:migrate"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

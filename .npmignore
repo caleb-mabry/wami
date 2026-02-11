@@ -1,0 +1,29 @@
+# Source files
+src/
+
+# Development files
+tsconfig.json
+.gitignore
+
+# Documentation (except README)
+DEVELOPMENT.md
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+*.test.ts
+*.spec.ts
+
+# Build artifacts
+*.log
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+temp.txt
+index.html
