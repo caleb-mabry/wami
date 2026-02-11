@@ -1,5 +1,5 @@
 {
-  "name": "wami",
+  "name": "@calebmabry/wami",
   "version": "0.1.0",
   "description": "Where Am I - A TUI tool that detects your repository and shows available commands",
   "module": "src/cli.tsx",
@@ -11,7 +11,11 @@
     "dev": "bun run src/cli.tsx",
     "build": "bun build src/cli.tsx --outdir dist --target node --format esm --external react --external ink --external yoga-layout-prebuilt",
     "start": "bun run dist/cli.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "publish": "bun run build && npm publish"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist"
