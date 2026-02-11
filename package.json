@@ -12,7 +12,7 @@
     "build": "bun build src/cli.tsx --outdir dist --target node --format esm --external react --external ink --external yoga-layout-prebuilt",
     "start": "bun run dist/cli.js",
     "typecheck": "tsc --noEmit",
-    "publish": "bun run build && npm publish"
+    "release": "bun run build && npm publish"
   },
   "publishConfig": {
     "access": "public"
