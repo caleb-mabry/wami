@@ -3,7 +3,7 @@
 > A smart TUI that detects your repository and shows available commands. Works everywhere, zero config.
 
 ![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
-[![npm version](https://img.shields.io/npm/v/wami.svg)](https://www.npmjs.com/package/wami)
+[![npm version](https://img.shields.io/npm/v/@calebmabry/wami.svg)](https://www.npmjs.com/package/wami)
 
 ## ✨ Features
 
@@ -17,7 +17,7 @@
 
 ## 📦 Installation
 
-\`\`\`bash
+```bash
 # Using bun
 bun install -g wami
 
@@ -29,15 +29,15 @@ pnpm add -g wami
 
 # Using yarn
 yarn global add wami
-\`\`\`
+```
 
 ## 🚀 Usage
 
 Navigate to any project and run:
 
-\`\`\`bash
+```bash
 wami
-\`\`\`
+```
 
 ### Keyboard Shortcuts
 
@@ -79,7 +79,7 @@ Detects \`pyproject.toml\`, \`Pipfile\`, or \`requirements.txt\` and supports:
 
 ## 🔧 Development
 
-\`\`\`bash
+```bash
 # Clone the repository
 git clone https://github.com/caleb-mabry/wami.git
 cd wami
@@ -95,7 +95,7 @@ bun run build
 
 # Type check
 bun run typecheck
-\`\`\`
+```
 
 ## 🤝 Contributing
 
