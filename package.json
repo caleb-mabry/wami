@@ -1,6 +1,6 @@
 {
   "name": "@calebmabry/wami",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Smart TUI that auto-detects your project type (Python, Node.js, etc.) and shows available commands - package manager scripts, task runners (poe, npm), and dev tools (ruff, pytest, eslint)",
   "module": "src/cli.tsx",
   "type": "module",
