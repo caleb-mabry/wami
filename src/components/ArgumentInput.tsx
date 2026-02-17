@@ -59,7 +59,7 @@ export function ArgumentInput({
     <Box flexDirection="column" padding={1} width="100%">
       <Box marginBottom={1} borderStyle="round" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">
-          ✏️  Add arguments to: {scriptName}
+          Add arguments to: {scriptName}
         </Text>
       </Box>
       <Box marginBottom={1} flexDirection="column">

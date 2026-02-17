@@ -7,15 +7,15 @@
 
 import * as path from 'path';
 import * as TOML from '@iarna/toml';
-import { EcosystemDetector } from './detector.js';
-import { findFileUpwards, fileExists, readJsonFile } from '../utils/fs.js';
-import { loadConfig, detectVenv } from '../utils/config.js';
-import { pythonParserRegistry } from './python/parser-registry.js';
-import { detectPythonTools, extractDependencyNames } from './python/tool-detector.js';
+import { EcosystemDetector } from '@core/detector.js';
+import { findFileUpwards, fileExists, readJsonFile } from '@utils/fs.js';
+import { loadConfig, detectVenv } from '@utils/config.js';
+import { pythonParserRegistry } from './task-runner-registry.js';
+import { detectPythonTools, extractDependencyNames } from './tool-detector.js';
 import { promises as fs } from 'fs';
-import type { PackageInfo, Script } from '../types/index.js';
+import type { PackageInfo, PythonPackageManagerId, Script } from '@wami-types';
 
-type PythonPackageManager = 'uv' | 'poetry' | 'pdm' | 'pipenv' | 'pip';
+type PythonPackageManager = PythonPackageManagerId;
 
 interface PyProjectToml {
   tool?: {
@@ -47,19 +47,16 @@ export class PythonDetector extends EcosystemDetector {
    * Priority: pyproject.toml > Pipfile > requirements.txt
    */
   async detect(cwd: string): Promise<string | null> {
-    // Check for pyproject.toml first (modern Python)
     const pyprojectRoot = await findFileUpwards(cwd, 'pyproject.toml');
     if (pyprojectRoot) {
       return pyprojectRoot;
     }
 
-    // Check for Pipfile (pipenv)
     const pipfileRoot = await findFileUpwards(cwd, 'Pipfile');
     if (pipfileRoot) {
       return pipfileRoot;
     }
 
-    // Check for requirements.txt (basic pip)
     const reqRoot = await findFileUpwards(cwd, 'requirements.txt');
     if (reqRoot) {
       return reqRoot;
@@ -78,36 +75,23 @@ export class PythonDetector extends EcosystemDetector {
 
     let name = path.basename(projectRoot);
     let scripts: Script[] = [];
-    let packageManager: PythonPackageManager = 'pip';
+    const packageManager = await this.detectPackageManager(projectRoot);
 
-    // Check for pyproject.toml (Poetry or PDM)
     if (await fileExists(pyprojectPath)) {
-      const result = await this.parsePyProject(pyprojectPath, projectRoot);
+      const result = await this.parsePyProject(pyprojectPath, projectRoot, packageManager);
       name = result.name;
       scripts = result.scripts;
-      packageManager = result.packageManager;
-    }
-    // Check for Pipfile (pipenv)
-    else if (await fileExists(pipfilePath)) {
+    } else if (await fileExists(pipfilePath)) {
       const result = await this.parsePipfile(pipfilePath);
       name = result.name || name;
       scripts = result.scripts;
-      packageManager = 'pipenv';
-    }
-    // Fall back to pip with requirements.txt
-    else if (await fileExists(requirementsPath)) {
-      packageManager = 'pip';
-      // pip doesn't have a standard scripts concept, add common commands
+    } else if (await fileExists(requirementsPath)) {
       scripts = this.getDefaultPipScripts();
     }
 
-    // Detect virtual environment
     const venvPath = await detectVenv(projectRoot);
-
-    // Load .wami.json configuration
     const config = await loadConfig(projectRoot);
 
-    // Apply configuration overrides
     if (config) {
       scripts = this.applyConfig(scripts, config);
     }
@@ -115,35 +99,47 @@ export class PythonDetector extends EcosystemDetector {
     return {
       path: pyprojectPath || pipfilePath || requirementsPath,
       name,
-      packageManager: packageManager as any, // Cast to satisfy PackageManager type
+      packageManager,
       scripts,
       hasVenv: !!venvPath,
       venvPath: venvPath || undefined,
     };
   }
 
-  /**
-   * Parse pyproject.toml for Poetry, PDM, or uv.
-   */
+  private async detectPackageManager(projectRoot: string): Promise<PythonPackageManager> {
+    const pyprojectPath = path.join(projectRoot, 'pyproject.toml');
+    const pipfilePath = path.join(projectRoot, 'Pipfile');
+
+    if (await fileExists(pyprojectPath)) {
+      const content = await fs.readFile(pyprojectPath, 'utf-8');
+      const toml = this.parseToml(content);
+
+      const hasPoetryLock = await fileExists(path.join(projectRoot, 'poetry.lock'));
+      const hasPdmLock = await fileExists(path.join(projectRoot, 'pdm.lock'));
+      const hasUvLock = await fileExists(path.join(projectRoot, 'uv.lock'));
+
+      if (toml.tool?.poetry || hasPoetryLock) return 'poetry';
+      if (toml.tool?.pdm || hasPdmLock) return 'pdm';
+      if (hasUvLock) return 'uv';
+      return 'pip';
+    }
+
+    if (await fileExists(pipfilePath)) return 'pipenv';
+    return 'pip';
+  }
+
   private async parsePyProject(
     pyprojectPath: string,
-    projectRoot: string
-  ): Promise<{ name: string; scripts: Script[]; packageManager: PythonPackageManager }> {
+    projectRoot: string,
+    packageManager: PythonPackageManager
+  ): Promise<{ name: string; scripts: Script[] }> {
     const content = await fs.readFile(pyprojectPath, 'utf-8');
     const toml = this.parseToml(content);
 
     let name = path.basename(projectRoot);
     let scripts: Script[] = [];
-    let packageManager: PythonPackageManager = 'pip';
 
-    // Detect package manager from lock files
-    const hasUvLock = await fileExists(path.join(projectRoot, 'uv.lock'));
-    const hasPoetryLock = await fileExists(path.join(projectRoot, 'poetry.lock'));
-    const hasPdmLock = await fileExists(path.join(projectRoot, 'pdm.lock'));
-
-    // Check for Poetry
-    if (toml.tool?.poetry || hasPoetryLock) {
-      packageManager = 'poetry';
+    if (packageManager === 'poetry') {
       name = toml.tool?.poetry?.name || name;
 
       if (toml.tool?.poetry?.scripts) {
@@ -153,16 +149,12 @@ export class PythonDetector extends EcosystemDetector {
         }));
       }
 
-      // Add common poetry commands
       scripts.push(
         { name: 'install', command: 'poetry install' },
         { name: 'shell', command: 'poetry shell' },
         { name: 'run', command: 'poetry run python' }
       );
-    }
-    // Check for PDM
-    else if (toml.tool?.pdm || hasPdmLock) {
-      packageManager = 'pdm';
+    } else if (packageManager === 'pdm') {
       name = toml.tool?.pdm?.name || toml.project?.name || name;
 
       if (toml.tool?.pdm?.scripts) {
@@ -177,42 +169,30 @@ export class PythonDetector extends EcosystemDetector {
         });
       }
 
-      // Add common PDM commands
       scripts.push(
         { name: 'install', command: 'pdm install' },
         { name: 'run', command: 'pdm run' }
       );
-    }
-    // Check for uv (modern Python package manager)
-    else if (hasUvLock) {
-      packageManager = 'uv';
+    } else if (packageManager === 'uv') {
       name = toml.project?.name || name;
 
-      // For uv, project.scripts are entry points (installed executables)
-      // These can be run with `uv run <script-name>`
       if (toml.project?.scripts) {
         scripts = Object.entries(toml.project.scripts).map(([key, value]) => ({
           name: key,
-          command: `uv run ${key}`, // Entry points are run by name, not module path
+          command: `uv run ${key}`,
         }));
       }
 
-      // Add common uv commands
       scripts.push(
         { name: 'sync', command: 'uv sync', description: 'Install and sync dependencies' },
         { name: 'python', command: 'uv run python', description: 'Run Python interpreter' }
       );
-    }
-    // Check for PEP 621 project.scripts (generic pip)
-    else if (toml.project?.scripts) {
-      packageManager = 'pip';
+    } else if (toml.project?.scripts) {
       name = toml.project.name || name;
 
-      // PEP 621 scripts are entry points - need to be installed first
-      // Show them but note they need installation
       scripts = Object.entries(toml.project.scripts).map(([key, value]) => ({
         name: key,
-        command: `python -m ${key}`, // Attempt to run as module
+        command: `python -m ${key}`,
       }));
 
       scripts.push({ name: 'install', command: 'pip install -e .', description: 'Install package in editable mode' });
@@ -228,26 +208,20 @@ export class PythonDetector extends EcosystemDetector {
     // Detect and add tool commands
     const toolScripts = await detectPythonTools(allDependencies, projectRoot);
 
-    // Filter out tool scripts that conflict with existing script names
     const existingScriptNames = new Set(scripts.map(s => s.name));
     const uniqueToolScripts = toolScripts.filter(tool => !existingScriptNames.has(tool.name));
     scripts.push(...uniqueToolScripts);
 
-    return { name, scripts, packageManager };
+    return { name, scripts };
   }
 
-  /**
-   * Collect all dependencies from various sections of pyproject.toml.
-   */
   private collectAllDependencies(toml: any): Set<string> {
     const dependencies = new Set<string>();
 
-    // PEP 621 dependencies
     if (toml.project?.dependencies) {
       extractDependencyNames(toml.project.dependencies).forEach(dep => dependencies.add(dep));
     }
 
-    // PEP 735 dependency-groups (new format)
     if (toml['dependency-groups']) {
       Object.values(toml['dependency-groups']).forEach((group: any) => {
         if (Array.isArray(group)) {
@@ -256,7 +230,6 @@ export class PythonDetector extends EcosystemDetector {
       });
     }
 
-    // Poetry dependencies
     if (toml.tool?.poetry?.dependencies) {
       Object.keys(toml.tool.poetry.dependencies).forEach(dep => dependencies.add(dep.toLowerCase()));
     }
@@ -264,7 +237,6 @@ export class PythonDetector extends EcosystemDetector {
       Object.keys(toml.tool.poetry['dev-dependencies']).forEach(dep => dependencies.add(dep.toLowerCase()));
     }
 
-    // PDM dependencies
     if (toml.tool?.pdm?.['dev-dependencies']) {
       Object.keys(toml.tool.pdm['dev-dependencies']).forEach(dep => dependencies.add(dep.toLowerCase()));
     }
@@ -272,9 +244,6 @@ export class PythonDetector extends EcosystemDetector {
     return dependencies;
   }
 
-  /**
-   * Parse Pipfile for pipenv.
-   */
   private async parsePipfile(
     pipfilePath: string
   ): Promise<{ name: string | null; scripts: Script[] }> {
@@ -289,7 +258,6 @@ export class PythonDetector extends EcosystemDetector {
       });
     }
 
-    // Add common pipenv commands
     scripts.push(
       { name: 'install', command: 'pipenv install' },
       { name: 'shell', command: 'pipenv shell' },
@@ -299,9 +267,6 @@ export class PythonDetector extends EcosystemDetector {
     return { name: null, scripts };
   }
 
-  /**
-   * Get default scripts for basic pip projects.
-   */
   private getDefaultPipScripts(): Script[] {
     return [
       { name: 'install', command: 'pip install -r requirements.txt' },
@@ -309,26 +274,18 @@ export class PythonDetector extends EcosystemDetector {
     ];
   }
 
-  /**
-   * Parse TOML content using proper TOML library.
-   */
   private parseToml(content: string): any {
     return TOML.parse(content);
   }
 
-  /**
-   * Apply .wami.json configuration to scripts.
-   */
   private applyConfig(scripts: Script[], config: any): Script[] {
     const configCommands = config.commands || {};
     const ignoreList = config.ignore || [];
 
-    // Filter out ignored scripts
     let filteredScripts = scripts.filter(
       (script) => !ignoreList.includes(script.name)
     );
 
-    // Add/override with config commands
     for (const [name, cmdConfig] of Object.entries(configCommands)) {
       const existingIndex = filteredScripts.findIndex((s) => s.name === name);
 
@@ -345,10 +302,8 @@ export class PythonDetector extends EcosystemDetector {
       }
 
       if (existingIndex >= 0) {
-        // Override existing script
         filteredScripts[existingIndex] = script;
       } else {
-        // Add new script
         filteredScripts.push(script);
       }
     }
@@ -356,21 +311,15 @@ export class PythonDetector extends EcosystemDetector {
     return filteredScripts;
   }
 
-  /**
-   * Build command string for executing a script.
-   */
   buildCommand(packageInfo: PackageInfo, scriptName: string): string {
-    const manager = packageInfo.packageManager as string;
+    const manager = packageInfo.packageManager;
 
-    // Check if this is a built-in command (install, shell, etc.)
     const script = packageInfo.scripts.find((s) => s.name === scriptName);
     if (script) {
-      // If the script already has the full command with package manager, use it as-is
       if (script.command.includes(manager) || script.command.includes('uv run') || script.command.includes('poetry run') || script.command.includes('pdm run') || script.command.includes('pipenv run')) {
         return script.command;
       }
 
-      // Otherwise, prepend the package manager run command to the script's command
       switch (manager) {
         case 'uv':
           return `uv run ${script.command}`;
@@ -382,12 +331,10 @@ export class PythonDetector extends EcosystemDetector {
           return `pipenv run ${script.command}`;
         case 'pip':
         default:
-          // For pip, just run the command directly (assumes venv is activated or tools are globally installed)
           return script.command;
       }
     }
 
-    // Fallback if script not found - use scriptName directly
     switch (manager) {
       case 'uv':
         return `uv run ${scriptName}`;

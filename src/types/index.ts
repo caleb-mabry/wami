@@ -1,6 +1,10 @@
 // Core types for the Where Am I CLI
 
-export type PackageManager = 'npm' | 'yarn' | 'pnpm' | 'bun';
+export type NodePackageManagerId = 'npm' | 'yarn' | 'pnpm' | 'bun';
+export type PythonPackageManagerId = 'uv' | 'poetry' | 'pdm' | 'pipenv' | 'pip';
+export type GoPackageManagerId = 'go';
+
+export type PackageManager = NodePackageManagerId | PythonPackageManagerId | GoPackageManagerId;
 
 export interface Script {
   name: string;

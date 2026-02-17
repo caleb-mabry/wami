@@ -57,7 +57,7 @@ export function CommandEditor({
     <Box flexDirection="column" padding={1} width="100%">
       <Box marginBottom={1} borderStyle="round" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">
-          ✏️  Edit command: {scriptName}
+          Edit command: {scriptName}
         </Text>
       </Box>
 

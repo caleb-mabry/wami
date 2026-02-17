@@ -8,8 +8,9 @@
  */
 
 import { EcosystemDetector } from './detector.js';
-import { NodeJSDetector } from './nodejs-detector.js';
-import { PythonDetector } from './python-detector.js';
+import { NodeJSDetector } from './node/detector.js';
+import { PythonDetector } from './python/detector.js';
+import { GoDetector } from './go/detector.js';
 import type { PackageInfo } from '../types/index.js';
 
 export interface DetectionResult {
@@ -27,11 +28,11 @@ export class DetectorRegistry {
     // Order matters: Detectors are tried in order until one succeeds
     // Put more specific detectors first (Python before Node.js)
     this.register(new PythonDetector());
+    this.register(new GoDetector());
     this.register(new NodeJSDetector());
 
     // Future detectors will be added here:
     // this.register(new RustDetector());
-    // this.register(new GoDetector());
   }
 
   /**

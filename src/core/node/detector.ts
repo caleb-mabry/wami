@@ -6,19 +6,20 @@
  */
 
 import * as path from 'path';
-import { EcosystemDetector } from './detector.js';
+import { EcosystemDetector } from '@core/detector.js';
 import {
   findFileUpwards,
   findAllFilesUpwards,
   fileExists,
   readJsonFile,
-} from '../utils/fs.js';
+} from '@utils/fs.js';
+import { NODE_PACKAGE_MANAGERS, findNodePackageManager } from './package-managers.js';
 import type {
   PackageInfo,
   PackageManager,
   Script,
   WorkspaceInfo,
-} from '../types/index.js';
+} from '@wami-types';
 
 interface PackageJson {
   name?: string;
@@ -100,8 +101,8 @@ export class NodeJSDetector extends EcosystemDetector {
       const hasTsConfig = await fileExists(path.join(projectRoot, 'tsconfig.json'));
       if (hasTsConfig) {
         tools.push(
-          { name: 'tsc', command: 'tsc --noEmit', description: '🔍 Type check with TypeScript' },
-          { name: 'tsc-build', command: 'tsc', description: '🏗️  Build TypeScript project' }
+          { name: 'tsc', command: 'tsc --noEmit', description: 'Type check with TypeScript' },
+          { name: 'tsc-build', command: 'tsc', description: 'Build TypeScript project' }
         );
       }
     }
@@ -109,111 +110,111 @@ export class NodeJSDetector extends EcosystemDetector {
     // ESLint - Linting
     if (dependencies.has('eslint')) {
       tools.push(
-        { name: 'eslint', command: 'eslint .', description: '🔍 Lint code with ESLint' },
-        { name: 'eslint-fix', command: 'eslint . --fix', description: '🔧 Lint and auto-fix issues' }
+        { name: 'eslint', command: 'eslint .', description: 'Lint code with ESLint' },
+        { name: 'eslint-fix', command: 'eslint . --fix', description: 'Lint and auto-fix issues' }
       );
     }
 
     // Prettier - Formatting
     if (dependencies.has('prettier')) {
       tools.push(
-        { name: 'prettier-check', command: 'prettier --check .', description: '👀 Check code formatting' },
-        { name: 'prettier-write', command: 'prettier --write .', description: '✨ Format code with Prettier' }
+        { name: 'prettier-check', command: 'prettier --check .', description: 'Check code formatting' },
+        { name: 'prettier-write', command: 'prettier --write .', description: 'Format code with Prettier' }
       );
     }
 
     // Biome - Fast linter and formatter (alternative to ESLint + Prettier)
     if (dependencies.has('@biomejs/biome') || dependencies.has('biome')) {
       tools.push(
-        { name: 'biome-check', command: 'biome check .', description: '🔍 Check code with Biome' },
-        { name: 'biome-check-fix', command: 'biome check --write .', description: '🔧 Check and auto-fix with Biome' },
-        { name: 'biome-format', command: 'biome format --write .', description: '✨ Format code with Biome' }
+        { name: 'biome-check', command: 'biome check .', description: 'Check code with Biome' },
+        { name: 'biome-check-fix', command: 'biome check --write .', description: 'Check and auto-fix with Biome' },
+        { name: 'biome-format', command: 'biome format --write .', description: 'Format code with Biome' }
       );
     }
 
     // Vitest - Testing framework
     if (dependencies.has('vitest')) {
       tools.push(
-        { name: 'vitest', command: 'vitest', description: '🧪 Run tests with Vitest' },
-        { name: 'vitest-ui', command: 'vitest --ui', description: '🧪 Run tests with Vitest UI' },
-        { name: 'vitest-run', command: 'vitest run', description: '🧪 Run tests once' },
-        { name: 'vitest-coverage', command: 'vitest --coverage', description: '📊 Run tests with coverage' }
+        { name: 'vitest', command: 'vitest', description: 'Run tests with Vitest' },
+        { name: 'vitest-ui', command: 'vitest --ui', description: 'Run tests with Vitest UI' },
+        { name: 'vitest-run', command: 'vitest run', description: 'Run tests once' },
+        { name: 'vitest-coverage', command: 'vitest --coverage', description: 'Run tests with coverage' }
       );
     }
 
     // Jest - Testing framework
     if (dependencies.has('jest') || dependencies.has('@jest/core')) {
       tools.push(
-        { name: 'jest', command: 'jest', description: '🧪 Run tests with Jest' },
-        { name: 'jest-watch', command: 'jest --watch', description: '🧪 Run tests in watch mode' },
-        { name: 'jest-coverage', command: 'jest --coverage', description: '📊 Run tests with coverage' }
+        { name: 'jest', command: 'jest', description: 'Run tests with Jest' },
+        { name: 'jest-watch', command: 'jest --watch', description: 'Run tests in watch mode' },
+        { name: 'jest-coverage', command: 'jest --coverage', description: 'Run tests with coverage' }
       );
     }
 
     // Playwright - E2E testing
     if (dependencies.has('@playwright/test') || dependencies.has('playwright')) {
       tools.push(
-        { name: 'playwright-test', command: 'playwright test', description: '🎭 Run Playwright tests' },
-        { name: 'playwright-ui', command: 'playwright test --ui', description: '🎭 Run Playwright tests with UI' },
-        { name: 'playwright-debug', command: 'playwright test --debug', description: '🐛 Debug Playwright tests' }
+        { name: 'playwright-test', command: 'playwright test', description: 'Run Playwright tests' },
+        { name: 'playwright-ui', command: 'playwright test --ui', description: 'Run Playwright tests with UI' },
+        { name: 'playwright-debug', command: 'playwright test --debug', description: 'Debug Playwright tests' }
       );
     }
 
     // Cypress - E2E testing
     if (dependencies.has('cypress')) {
       tools.push(
-        { name: 'cypress-open', command: 'cypress open', description: '🌲 Open Cypress test runner' },
-        { name: 'cypress-run', command: 'cypress run', description: '🌲 Run Cypress tests headlessly' }
+        { name: 'cypress-open', command: 'cypress open', description: 'Open Cypress test runner' },
+        { name: 'cypress-run', command: 'cypress run', description: 'Run Cypress tests headlessly' }
       );
     }
 
     // Vite - Build tool
     if (dependencies.has('vite')) {
       tools.push(
-        { name: 'vite-dev', command: 'vite', description: '⚡ Start Vite dev server' },
-        { name: 'vite-build', command: 'vite build', description: '⚡ Build with Vite' },
-        { name: 'vite-preview', command: 'vite preview', description: '⚡ Preview Vite build' }
+        { name: 'vite-dev', command: 'vite', description: 'Start Vite dev server' },
+        { name: 'vite-build', command: 'vite build', description: 'Build with Vite' },
+        { name: 'vite-preview', command: 'vite preview', description: 'Preview Vite build' }
       );
     }
 
     // Turbo - Monorepo build system
     if (dependencies.has('turbo')) {
       tools.push(
-        { name: 'turbo-build', command: 'turbo build', description: '🚀 Build with Turbo' },
-        { name: 'turbo-dev', command: 'turbo dev', description: '🚀 Start dev mode with Turbo' },
-        { name: 'turbo-test', command: 'turbo test', description: '🚀 Run tests with Turbo' }
+        { name: 'turbo-build', command: 'turbo build', description: 'Build with Turbo' },
+        { name: 'turbo-dev', command: 'turbo dev', description: 'Start dev mode with Turbo' },
+        { name: 'turbo-test', command: 'turbo test', description: 'Run tests with Turbo' }
       );
     }
 
     // Nx - Monorepo build system
     if (dependencies.has('nx') || dependencies.has('@nx/workspace')) {
       tools.push(
-        { name: 'nx-build', command: 'nx build', description: '🔷 Build with Nx' },
-        { name: 'nx-test', command: 'nx test', description: '🔷 Run tests with Nx' },
-        { name: 'nx-graph', command: 'nx graph', description: '🔷 View project graph' }
+        { name: 'nx-build', command: 'nx build', description: 'Build with Nx' },
+        { name: 'nx-test', command: 'nx test', description: 'Run tests with Nx' },
+        { name: 'nx-graph', command: 'nx graph', description: 'View project graph' }
       );
     }
 
     // Type-check - General type checking (if no tsc script exists)
     if (dependencies.has('typescript') && !packageJson.scripts?.typecheck) {
       tools.push(
-        { name: 'typecheck', command: 'tsc --noEmit', description: '🔍 Type check code' }
+        { name: 'typecheck', command: 'tsc --noEmit', description: 'Type check code' }
       );
     }
 
     // Stylelint - CSS linting
     if (dependencies.has('stylelint')) {
       tools.push(
-        { name: 'stylelint', command: 'stylelint "**/*.css"', description: '💅 Lint CSS files' },
-        { name: 'stylelint-fix', command: 'stylelint "**/*.css" --fix', description: '💅 Lint and fix CSS files' }
+        { name: 'stylelint', command: 'stylelint "**/*.css"', description: 'Lint CSS files' },
+        { name: 'stylelint-fix', command: 'stylelint "**/*.css" --fix', description: 'Lint and fix CSS files' }
       );
     }
 
     // Storybook - Component development
     if (dependencies.has('@storybook/react') || dependencies.has('storybook')) {
       tools.push(
-        { name: 'storybook', command: 'storybook dev', description: '📖 Start Storybook dev server' },
-        { name: 'storybook-build', command: 'storybook build', description: '📖 Build Storybook' }
+        { name: 'storybook', command: 'storybook dev', description: 'Start Storybook dev server' },
+        { name: 'storybook-build', command: 'storybook build', description: 'Build Storybook' }
       );
     }
 
@@ -222,28 +223,20 @@ export class NodeJSDetector extends EcosystemDetector {
 
   /**
    * Detect which package manager is used by checking for lock files.
-   * Priority: bun > pnpm > yarn > npm (fallback)
+   * Detection priority and lock file names come from NODE_PACKAGE_MANAGERS.
    */
   private async detectPackageManager(
     projectRoot: string
   ): Promise<PackageManager> {
-    // Check in priority order
-    const lockFiles: Array<[string, PackageManager]> = [
-      ['bun.lockb', 'bun'],
-      ['bun.lock', 'bun'], // Text version of bun lock
-      ['pnpm-lock.yaml', 'pnpm'],
-      ['yarn.lock', 'yarn'],
-      ['package-lock.json', 'npm'],
-    ];
-
-    for (const [lockFile, manager] of lockFiles) {
-      const lockPath = path.join(projectRoot, lockFile);
-      if (await fileExists(lockPath)) {
-        return manager;
+    for (const pm of NODE_PACKAGE_MANAGERS) {
+      for (const lockFile of pm.lockFiles) {
+        if (await fileExists(path.join(projectRoot, lockFile))) {
+          return pm.id;
+        }
       }
     }
 
-    // Default to npm if no lock file found
+    // npm is the fallback when no lock file is present
     return 'npm';
   }
 
@@ -309,22 +302,16 @@ export class NodeJSDetector extends EcosystemDetector {
       }
     }
 
-    // Found multiple package.json files but none define workspaces
-    // This might be nested packages without workspace configuration
     return undefined;
   }
 
   /**
    * Build command string for executing a script.
+   * Delegates to the package manager definition so the invocation format
+   * stays co-located with the rest of that PM's knowledge.
    */
   buildCommand(packageInfo: PackageInfo, scriptName: string): string {
-    const { packageManager } = packageInfo;
-
-    // npm and yarn use "run", pnpm and bun can omit it
-    if (packageManager === 'npm' || packageManager === 'yarn') {
-      return `${packageManager} run ${scriptName}`;
-    }
-
-    return `${packageManager} ${scriptName}`;
+    const pm = findNodePackageManager(packageInfo.packageManager);
+    return pm ? pm.buildRunCommand(scriptName) : `${packageInfo.packageManager} ${scriptName}`;
   }
 }

@@ -5,8 +5,8 @@
  * https://github.com/nat-n/poethepoet
  */
 
-import type { Script } from '../../types/index.js';
-import type { TaskParser } from './task-parser.js';
+import type { Script } from '@wami-types';
+import type { TaskParser } from '../interfaces/task-parser.js';
 
 /**
  * Poethepoet task runner parser.
@@ -48,7 +48,6 @@ export class PoeTaskParser implements TaskParser {
       } else if (typeof taskConfig === 'object' && taskConfig !== null) {
         const config = taskConfig as any;
 
-        // Get the command
         if (config.shell) {
           command = config.shell;
         } else if (config.script) {
@@ -56,11 +55,9 @@ export class PoeTaskParser implements TaskParser {
         } else if (config.cmd) {
           command = config.cmd;
         } else if (Array.isArray(config)) {
-          // Some tasks are defined as arrays of commands
           command = config.join(' && ');
         }
 
-        // Get the description
         if (config.help) {
           description = config.help;
         }

@@ -5,7 +5,7 @@
  * Allows for automatic discovery and registration of parsers.
  */
 
-import type { Script } from '../../types/index.js';
+import type { Script } from '@wami-types';
 
 /**
  * Interface for task runner parsers.

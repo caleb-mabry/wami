@@ -67,7 +67,7 @@ export function CustomCommandInput({
     return (
       <Box flexDirection="column" marginBottom={1}>
         <Text color={isFocused ? 'cyan' : 'dim'} bold={isFocused}>
-          {fieldName === 'name' ? '📝 Name' : '⚡ Command'} {isFocused && '(active)'}:
+          {fieldName === 'name' ? 'Name' : 'Command'} {isFocused && '(active)'}:
         </Text>
         <Box paddingLeft={2}>
           {isFocused ? (
@@ -88,7 +88,7 @@ export function CustomCommandInput({
     <Box flexDirection="column" padding={1} width="100%">
       <Box marginBottom={1} borderStyle="round" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">
-          ✨ Create Custom Command
+          Create Custom Command
         </Text>
       </Box>
 

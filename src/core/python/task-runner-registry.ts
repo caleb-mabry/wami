@@ -1,62 +1,47 @@
 /**
- * Task Parser Registry
+ * Task Runner Registry
  *
- * Auto-discovers and registers all Python task parsers.
+ * Auto-discovers and registers all Python task runner parsers.
  * Inspired by C# plugin introspection patterns.
  */
 
-import type { TaskParser } from './task-parser.js';
-import type { Script } from '../../types/index.js';
+import type { TaskParser } from './interfaces/task-parser.js';
+import type { Script } from '@wami-types';
 
 // Import all parsers - new parsers are automatically discovered here
-import { poeTaskParser } from './poe-parser.js';
+import { poeTaskParser } from './tools/poe.js';
 // Future parsers:
-// import { invokeTaskParser } from './invoke-parser.js';
-// import { noxTaskParser } from './nox-parser.js';
+// import { invokeTaskParser } from './tools/invoke.js';
+// import { noxTaskParser } from './tools/nox.js';
 
 /**
- * Registry of all Python task parsers.
+ * Registry of all Python task runner parsers.
  *
  * To add a new parser:
- * 1. Create a new file (e.g., invoke-parser.ts)
+ * 1. Create a new file in tools/ (e.g., invoke.ts)
  * 2. Implement the TaskParser interface
  * 3. Export a singleton instance
  * 4. Import it above
  * 5. Add to the parsers array below
- *
- * That's it! The parser is now auto-discovered.
  */
 class PythonParserRegistry {
   private parsers: TaskParser[] = [];
 
   constructor() {
-    // Auto-register all parsers
     this.register(poeTaskParser);
     // Future parsers will be added here:
     // this.register(invokeTaskParser);
     // this.register(noxTaskParser);
   }
 
-  /**
-   * Register a task parser.
-   */
   private register(parser: TaskParser): void {
     this.parsers.push(parser);
   }
 
-  /**
-   * Get all registered parsers.
-   */
   getAllParsers(): TaskParser[] {
     return [...this.parsers];
   }
 
-  /**
-   * Parse tasks from all configured parsers.
-   *
-   * @param toml - Parsed pyproject.toml content
-   * @returns Combined array of scripts from all parsers
-   */
   parseAll(toml: any): Script[] {
     const allScripts: Script[] = [];
 
@@ -70,13 +55,9 @@ class PythonParserRegistry {
     return allScripts;
   }
 
-  /**
-   * Get names of all registered parsers.
-   */
   getParserNames(): string[] {
     return this.parsers.map(p => p.name);
   }
 }
 
-// Export singleton instance
 export const pythonParserRegistry = new PythonParserRegistry();

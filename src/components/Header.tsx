@@ -22,7 +22,7 @@ export function Header({ packageInfo, ecosystemName }: HeaderProps) {
     <Box flexDirection="column">
       <Box borderStyle="round" borderColor="cyan" padding={1}>
         <Text bold color="cyan">
-          Where Am I? 🗺️
+          Where Am I?
         </Text>
       </Box>
 

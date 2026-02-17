@@ -409,7 +409,7 @@ export function ScriptList({
       {historyCount > 0 && startIndex < historyCount && (
         <>
           <Text bold color="green">
-            ⚡ Recent Commands:
+            Recent Commands:
           </Text>
           {visibleScripts.map((script, visibleIndex) => {
             const actualIndex = startIndex + visibleIndex;
